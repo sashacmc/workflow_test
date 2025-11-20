@@ -15,11 +15,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Load checklist definitions
+        id: load-defs
+        run: |
+          echo "defs<<EOF" >> $GITHUB_OUTPUT
+          cat .github/pr-checklists.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Get PR labels and generate checklists
         id: generate
         uses: actions/github-script@v7
         with:
+          result-encoding: string
           script: |
+            // Load checklist definitions
+            const definitions = JSON.parse(`${{ steps.load-defs.outputs.defs }}`);
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -29,189 +42,25 @@ jobs:
             const labels = pr.labels.map(l => l.name);
             console.log('PR Labels:', labels);
 
-            let checklists = [];
+            // Generate checklists based on labels
+            const checklists = [];
+            const labelDefinitions = definitions.label_checklists;
 
-            // Bug fix checklist
-            if (labels.includes('bug')) {
-              checklists.push(`
-            ## 🐛 Bug Fix Requirements
+            for (const label of labels) {
+              if (labelDefinitions[label]) {
+                const def = labelDefinitions[label];
+                const items = def.items.map(item => `- [ ] ${item}`).join('\n            ');
 
-            Since this PR is labeled as a **bug fix**, please ensure:
+                checklists.push(`
+            ## ${def.title}
 
-            - [ ] **Root cause documented** - Explain what caused the bug in the PR description
-            - [ ] **Reproduction test added** - Test that fails on main branch without the fix
-            - [ ] **Test passes with fix** - The reproduction test passes with your changes
-            - [ ] **Regression prevention** - Test will catch if this bug reoccurs in the future
-            - [ ] **Fix is minimal** - Changes are focused only on fixing the bug, not refactoring
-            - [ ] **Related bugs checked** - Verified no similar bugs exist in related code
+            ${def.description}
 
-            **Why this matters:** ${labels.includes('critical') ? 'This is a critical bug - extra rigor required!' : 'Bugs without tests often reoccur.'}
-            `);
-            }
+            ${items}
 
-            // Enhancement/Feature checklist
-            if (labels.includes('enhancement') || labels.includes('feature')) {
-              checklists.push(`
-            ## ✨ Feature/Enhancement Requirements
-
-            Since this PR adds new functionality:
-
-            - [ ] **Feature scope documented** - Clear description of what the feature does
-            - [ ] **API design reviewed** - Public APIs are intuitive and well-designed
-            - [ ] **Comprehensive tests** - All functionality is tested (happy path + edge cases)
-            - [ ] **Examples provided** - Usage examples in code comments or separate example files
-            - [ ] **Documentation updated** - User-facing docs reflect new functionality
-            - [ ] **Breaking changes noted** - If any, migration guide provided
-            - [ ] **Performance considered** - No obvious performance regressions
-
-            **Consider:** Can this feature be split into smaller, incremental PRs?
-            `);
-            }
-
-            // Security checklist
-            if (labels.includes('security')) {
-              checklists.push(`
-            ## 🔒 Security Fix Requirements
-
-            Since this PR addresses a security issue:
-
-            - [ ] **Security team notified** - Tag security team members for review
-            - [ ] **Vulnerability documented** - (privately) Describe the vulnerability and impact
-            - [ ] **Security test added** - Test demonstrates the vulnerability is fixed
-            - [ ] **Minimum 2 reviewers** - At least one must be a security expert
-            - [ ] **CVE assigned** - If applicable, CVE number included
-            - [ ] **Security advisory created** - Draft advisory for affected versions
-            - [ ] **Backport plan defined** - Which versions need this fix?
-            - [ ] **No sensitive info in PR** - No exploit details or secrets in public PR
-
-            ⚠️ **CRITICAL:** Do not disclose vulnerability details publicly until coordinated disclosure.
-            `);
-            }
-
-            // Performance checklist
-            if (labels.includes('performance')) {
-              checklists.push(`
-            ## ⚡ Performance Improvement Requirements
-
-            Since this PR claims performance improvements:
-
-            - [ ] **Before/after benchmarks** - Concrete numbers showing improvement
-            - [ ] **Profiling data provided** - Evidence of what was optimized
-            - [ ] **Benchmark methodology** - How benchmarks were run (reproducible)
-            - [ ] **Correctness preserved** - All tests pass, no functionality changed
-            - [ ] **Trade-offs documented** - Any complexity or memory trade-offs noted
-            - [ ] **Real-world scenarios** - Benchmarks reflect actual use cases
-
-            **Required:** Paste benchmark results in PR description or comments.
-            `);
-            }
-
-            // Breaking change checklist
-            if (labels.includes('breaking')) {
-              checklists.push(`
-            ## 💥 Breaking Change Requirements
-
-            Since this PR contains breaking changes:
-
-            - [ ] **Breaking changes documented** - Clear list of what breaks
-            - [ ] **Migration guide provided** - Step-by-step instructions for users
-            - [ ] **Deprecation considered** - Could this be done with deprecation warnings first?
-            - [ ] **Version bump planned** - Major or minor version bump needed
-            - [ ] **CHANGELOG updated** - Breaking changes clearly listed
-            - [ ] **Alternatives explored** - Why is breaking change necessary?
-            - [ ] **Impact assessed** - How many users/use cases affected?
-
-            **Note:** Breaking changes should be discussed with maintainers before implementation.
-            `);
-            }
-
-            // Dependencies checklist
-            if (labels.includes('dependencies')) {
-              checklists.push(`
-            ## 📦 Dependencies Update Requirements
-
-            Since this PR updates dependencies:
-
-            - [ ] **Dependency purpose justified** - Why is this dependency needed/updated?
-            - [ ] **Security audit** - Run \`cargo audit\` to check for vulnerabilities
-            - [ ] **License compatible** - Verify license is compatible with project
-            - [ ] **Size impact** - Check binary size impact
-            - [ ] **Transitive deps reviewed** - Check what else this pulls in
-            - [ ] **Alternatives considered** - Why this specific dependency/version?
-            - [ ] **Tests pass** - All existing tests work with new dependency version
-
-            **Tip:** Use \`cargo tree\` to inspect dependency tree.
-            `);
-            }
-
-            // Documentation checklist
-            if (labels.includes('documentation')) {
-              checklists.push(`
-            ## 📚 Documentation Update Requirements
-
-            Since this PR updates documentation:
-
-            - [ ] **Accuracy verified** - Technical details are correct
-            - [ ] **Examples tested** - Code examples actually work
-            - [ ] **Links valid** - All links work and point to correct versions
-            - [ ] **Grammar/spelling** - Text is clear and well-written
-            - [ ] **Formatting correct** - Markdown/formatting renders properly
-            - [ ] **Up-to-date** - Reflects current codebase state
-
-            **Suggestion:** Have someone unfamiliar with the feature review for clarity.
-            `);
-            }
-
-            // CI/CD checklist
-            if (labels.includes('ci')) {
-              checklists.push(`
-            ## 🔧 CI/CD Update Requirements
-
-            Since this PR modifies CI/CD:
-
-            - [ ] **Tested in fork** - CI changes tested in your fork first
-            - [ ] **Backwards compatible** - Doesn't break existing workflows
-            - [ ] **Secure** - No secrets exposed, proper permissions
-            - [ ] **Documented** - Comments explain what workflow does
-            - [ ] **Failure modes considered** - What happens when it fails?
-            - [ ] **Performance impact** - Won't significantly slow down CI
-
-            **Warning:** CI changes affect all contributors - test thoroughly!
-            `);
-            }
-
-            // Critical label warning
-            if (labels.includes('critical')) {
-              checklists.push(`
-            ## ⚠️ CRITICAL Priority
-
-            This PR is marked as **CRITICAL**:
-
-            - [ ] **Urgency justified** - Clear explanation why this is critical
-            - [ ] **Risk assessment** - What could go wrong?
-            - [ ] **Testing extra rigorous** - More testing than usual
-            - [ ] **Rollback plan** - How to revert if issues found?
-            - [ ] **Communication plan** - Who needs to know about this change?
-            - [ ] **Fast-track review** - Reviewers notified of urgency
-
-            **Note:** Critical PRs still need thorough review - speed should not compromise quality.
-            `);
-            }
-
-            // Internal label note
-            if (labels.includes('internal')) {
-              checklists.push(`
-            ## 🏠 Internal Change
-
-            This PR is marked as **internal** (not user-facing):
-
-            - [ ] **No API changes** - Public APIs unchanged
-            - [ ] **No behavior changes** - External behavior identical
-            - [ ] **Refactoring/maintenance** - Code improvements only
-            - [ ] **Tests still pass** - All existing tests pass without modification
-
-            **Lighter review:** Internal changes may have lighter review requirements.
-            `);
+            ${def.footer || ''}
+                `.trim());
+              }
             }
 
             // Generate final comment
@@ -253,13 +102,13 @@ jobs:
             `;
             }
 
-            return { comment, labelCount: labels.length, checklistCount: checklists.length };
+            return JSON.stringify({ comment, labelCount: labels.length, checklistCount: checklists.length });
 
       - name: Post or update checklist comment
         uses: actions/github-script@v7
         with:
           script: |
-            const result = ${{ steps.generate.outputs.result }};
+            const result = JSON.parse(`${{ steps.generate.outputs.result }}`);
             const comment = result.comment;
 
             // Find existing label-based checklist comment

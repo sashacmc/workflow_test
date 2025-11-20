@@ -8,10 +8,8 @@ on:
     types: [created, edited]
 
 permissions:
-  pull-requests: write
+  pull-requests: read
   contents: read
-  checks: write
-  issues: write
 
 jobs:
   verify-checklist:
@@ -25,6 +23,7 @@ jobs:
         id: pr-number
         uses: actions/github-script@v7
         with:
+          result-encoding: string
           script: |
             if (context.eventName === 'pull_request') {
               return context.payload.pull_request.number;
@@ -37,27 +36,27 @@ jobs:
         id: pr
         uses: actions/github-script@v7
         with:
+          result-encoding: string
           script: |
-            const prNumber = ${{ steps.pr-number.outputs.result }};
+            const prNumber = parseInt(`${{ steps.pr-number.outputs.result }}`);
             const { data: pullRequest } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: prNumber
             });
-            return {
+            return JSON.stringify({
               number: prNumber,
               body: pullRequest.body || '',
-              labels: pullRequest.labels.map(l => l.name),
-              additions: pullRequest.additions,
-              changed_files: pullRequest.changed_files
-            };
+              labels: pullRequest.labels.map(l => l.name)
+            });
 
       - name: Get label-based checklist comment
         id: label-checklist
         uses: actions/github-script@v7
         with:
+          result-encoding: string
           script: |
-            const prData = ${{ steps.pr.outputs.result }};
+            const prData = JSON.parse(`${{ steps.pr.outputs.result }}`);
             // Find label-based checklist comment
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -76,370 +75,73 @@ jobs:
         id: verify
         uses: actions/github-script@v7
         with:
+          result-encoding: string
           script: |
-            const prData = ${{ steps.pr.outputs.result }};
+            const prData = JSON.parse(`${{ steps.pr.outputs.result }}`);
             const body = prData.body;
             const labels = prData.labels;
-            const additions = prData.additions;
-            const changedFiles = prData.changed_files;
-            const labelChecklistBody = ${{ steps.label-checklist.outputs.result }};
+            const labelChecklistBody = `${{ steps.label-checklist.outputs.result }}`;
 
             // Combine PR body and label checklist for verification
             const combinedBody = body + '\n\n' + labelChecklistBody;
 
-            // Count checkbox items in PR body
-            const totalCheckboxesPR = (body.match(/- \[ \]/g) || []).length;
+            // Count all checkboxes (checked and unchecked)
+            const allCheckboxesPR = (body.match(/- \[[ x]\]/gi) || []).length;
             const checkedCheckboxesPR = (body.match(/- \[x\]/gi) || []).length;
+            const uncheckedCheckboxesPR = allCheckboxesPR - checkedCheckboxesPR;
 
-            // Count checkbox items in label-based checklist
-            const totalCheckboxesLabel = (labelChecklistBody.match(/- \[ \]/g) || []).length;
+            const allCheckboxesLabel = (labelChecklistBody.match(/- \[[ x]\]/gi) || []).length;
             const checkedCheckboxesLabel = (labelChecklistBody.match(/- \[x\]/gi) || []).length;
+            const uncheckedCheckboxesLabel = allCheckboxesLabel - checkedCheckboxesLabel;
 
-            // Combined totals
-            const totalCheckboxes = totalCheckboxesPR + totalCheckboxesLabel;
+            const totalCheckboxes = allCheckboxesPR + allCheckboxesLabel;
             const checkedCheckboxes = checkedCheckboxesPR + checkedCheckboxesLabel;
-            const uncheckedCheckboxes = totalCheckboxes - checkedCheckboxes;
+            const uncheckedCheckboxes = uncheckedCheckboxesPR + uncheckedCheckboxesLabel;
 
-            console.log(`PR body checkboxes: ${checkedCheckboxesPR}/${totalCheckboxesPR}`);
-            console.log(`Label checklist checkboxes: ${checkedCheckboxesLabel}/${totalCheckboxesLabel}`);
-            console.log(`Total checkboxes: ${checkedCheckboxes}/${totalCheckboxes}`);
+            console.log(`PR body: ${checkedCheckboxesPR}/${allCheckboxesPR} checked`);
+            console.log(`Label checklist: ${checkedCheckboxesLabel}/${allCheckboxesLabel} checked`);
+            console.log(`Total: ${checkedCheckboxes}/${totalCheckboxes} checked`);
             console.log(`Unchecked: ${uncheckedCheckboxes}`);
 
-            // Define critical checklist items that MUST be checked
-            const criticalPatterns = [
-              /- \[[ x]\].*The PR solves the problem/i,
-              /- \[[ x]\].*Code follows project conventions/i,
-              /- \[[ x]\].*Code is properly formatted/i,
-              /- \[[ x]\].*New code has accompanying tests/i,
-              /- \[[ x]\].*All tests pass locally/i,
-              /- \[[ x]\].*All errors are properly handled/i,
-              /- \[[ x]\].*No unwrapped Results or Options in production code/i,
-              /- \[[ x]\].*Clippy warnings addressed/i,
-              /- \[[ x]\].*No compiler warnings/i,
-            ];
-
-            // Check critical items in both PR body and label checklist
-            const criticalIssues = [];
-            for (const pattern of criticalPatterns) {
-              const match = combinedBody.match(pattern);
-              if (match) {
-                const item = match[0];
-                if (!item.match(/- \[x\]/i)) {
-                  const description = item.replace(/- \[ \]\s*/i, '');
-                  criticalIssues.push(description);
-                }
-              }
-            }
-
-            // Bug fix specific validation
-            if (labels.includes('bug')) {
-              const bugFixPatterns = [
-                /- \[[ x]\].*Root cause documented/i,
-                /- \[[ x]\].*Reproduction test added/i,
-                /- \[[ x]\].*Test passes with fix/i,
-                /- \[[ x]\].*Regression prevention/i,
-              ];
-
-              for (const pattern of bugFixPatterns) {
-                const match = combinedBody.match(pattern);
-                if (match && !match[0].match(/- \[x\]/i)) {
-                  criticalIssues.push('Bug fix requires: ' + match[0].replace(/- \[ \]\s*/i, ''));
-                }
-              }
-            }
-
-            // Security fix validation
-            if (labels.includes('security')) {
-              const securityPatterns = [
-                /- \[[ x]\].*Security team notified/i,
-                /- \[[ x]\].*Minimum 2 reviewers/i,
-                /- \[[ x]\].*Security test added/i,
-                /- \[[ x]\].*No sensitive info in PR/i,
-              ];
-
-              for (const pattern of securityPatterns) {
-                const match = combinedBody.match(pattern);
-                if (match && !match[0].match(/- \[x\]/i)) {
-                  criticalIssues.push('Security fix requires: ' + match[0].replace(/- \[ \]\s*/i, ''));
-                }
-              }
-            }
-
-            // Large PR validation (>500 lines)
-            if (additions > 500) {
-              const largePRPattern = /- \[[ x]\].*At least 2 approvals.*large PR/i;
-              const match = body.match(largePRPattern);
-              if (match && !match[0].match(/- \[x\]/i)) {
-                criticalIssues.push('Large PR (>500 lines) requires: 2+ approvals');
-              }
-            }
-
-            // Calculate completion percentage
-            const completionPercent = totalCheckboxes > 0
-              ? Math.round((checkedCheckboxes / totalCheckboxes) * 100)
-              : 0;
-
-            // Determine status
+            // Simple rule: ALL boxes must be checked
             let status = 'success';
-            let message = `PR checklist: ${checkedCheckboxes}/${totalCheckboxes} items completed (${completionPercent}%)`;
+            let message = `All checklist items completed (${totalCheckboxes}/${totalCheckboxes})`;
 
-            if (criticalIssues.length > 0) {
+            if (uncheckedCheckboxes > 0) {
               status = 'failure';
-              message = `Critical checklist items not completed:\n${criticalIssues.map(i => '  - ' + i).join('\n')}`;
-            } else if (completionPercent < 80) {
-              status = 'neutral';
-              message = `PR checklist completion: ${completionPercent}% (minimum 80% recommended)`;
-            } else if (completionPercent < 100) {
-              status = 'neutral';
-              message = `PR checklist: ${checkedCheckboxes}/${totalCheckboxes} items completed (${completionPercent}%). Please complete remaining items.`;
+              const uncheckedInPR = uncheckedCheckboxesPR > 0 ? `${uncheckedCheckboxesPR} in PR description` : null;
+              const uncheckedInLabel = uncheckedCheckboxesLabel > 0 ? `${uncheckedCheckboxesLabel} in label checklist` : null;
+              const uncheckedParts = [uncheckedInPR, uncheckedInLabel].filter(Boolean).join(', ');
+              message = `Checklist incomplete: ${uncheckedCheckboxes} unchecked item(s) (${uncheckedParts})`;
             }
 
             core.setOutput('status', status);
             core.setOutput('message', message);
-            core.setOutput('completion', completionPercent);
-            core.setOutput('critical_issues', criticalIssues.length);
+            core.setOutput('checked', checkedCheckboxes);
+            core.setOutput('total', totalCheckboxes);
+            core.setOutput('unchecked', uncheckedCheckboxes);
 
-            return {
+            return JSON.stringify({
               status,
               message,
-              completion: completionPercent,
               checked: checkedCheckboxes,
               total: totalCheckboxes,
-              criticalIssues: criticalIssues.length
-            };
+              unchecked: uncheckedCheckboxes
+            });
 
-      - name: Create or update check run
+      - name: Report status
         uses: actions/github-script@v7
         with:
           script: |
-            const result = ${{ steps.verify.outputs.result }};
+            const result = JSON.parse(`${{ steps.verify.outputs.result }}`);
             const status = '${{ steps.verify.outputs.status }}';
             const message = `${{ steps.verify.outputs.message }}`;
-            const completion = ${{ steps.verify.outputs.completion }};
 
-            let conclusion = status === 'success' ? 'success' :
-                           status === 'neutral' ? 'neutral' : 'failure';
-
-            // Create check run
-            await github.rest.checks.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              name: 'PR Checklist Verification',
-              head_sha: context.payload.pull_request.head.sha,
-              status: 'completed',
-              conclusion: conclusion,
-              output: {
-                title: `Checklist Completion: ${completion}%`,
-                summary: message,
-                text: `
-            ## PR Checklist Status
-
-            **Completion:** ${result.checked}/${result.total} items (${completion}%)
-            **Critical Issues:** ${result.criticalIssues}
-
-            ${message}
-
-            ## Requirements
-
-            - ✅ Critical items must be checked
-            - ✅ Minimum 80% completion required
-            - ✅ 100% completion recommended before merge
-
-            ## Next Steps
-
-            ${conclusion === 'success'
-              ? '✅ Checklist verification passed! Ready for review.'
-              : '⚠️ Please complete the required checklist items in the PR description.'}
-
-            ---
-            *This check verifies that PR checklist items are completed according to enterprise quality standards.*
-                `
-              }
-            });
-
-      - name: Comment on PR (if issues found)
-        if: steps.verify.outputs.status != 'success'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const message = `${{ steps.verify.outputs.message }}`;
-            const completion = ${{ steps.verify.outputs.completion }};
-
-            const prData = ${{ steps.pr.outputs.result }};
-            // Check if we already commented
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prData.number
-            });
-
-            const botComment = comments.find(comment =>
-              comment.user.type === 'Bot' &&
-              comment.body.includes('PR Checklist Verification')
-            );
-
-            const commentBody = `
-            ## 📋 PR Checklist Verification
-
-            **Status:** ${completion < 80 ? '⚠️' : '✅'} Overall completion: ${completion}%
-
-            **Breakdown:**
-            - PR Template: ${checkedCheckboxesPR}/${totalCheckboxesPR} items (${totalCheckboxesPR > 0 ? Math.round((checkedCheckboxesPR/totalCheckboxesPR)*100) : 0}%)
-            - Label-Based: ${checkedCheckboxesLabel}/${totalCheckboxesLabel} items (${totalCheckboxesLabel > 0 ? Math.round((checkedCheckboxesLabel/totalCheckboxesLabel)*100) : 0}%)
-
-            ${message}
-
-            ### What you need to do:
-
-            1. **PR Description:** Review and check off items in your PR description
-            2. **Label Checklist:** If labels are applied (bug, security, etc.), check off items in the label-based checklist comment
-            3. Ensure all **critical items** are completed
-            4. Change \`- [ ]\` to \`- [x]\` to mark items complete
-            5. Aim for 100% completion before requesting review
-
-            ### Critical Items (must be checked):
-            - The PR solves the problem it claims to solve
-            - Code is properly formatted (\`cargo fmt\`)
-            - New code has accompanying tests
-            - All tests pass locally (\`cargo test\`)
-            - All errors are properly handled
-            - No unwrapped Results/Options in production code
-            - Clippy warnings addressed (\`cargo clippy\`)
-            - No compiler warnings
-
-            ${totalCheckboxesLabel > 0
-              ? '> **Note:** This PR has label-specific requirements. Check the label-based checklist comment and complete those items too!'
-              : ''}
-
-            ${completion >= 80 && completion < 100
-              ? '> **Progress:** You have completed most items. Please finish remaining checklist items before merge.'
-              : ''}
-
-            ---
-            *This check verifies both PR description checklist and label-based checklist. Update either to re-trigger verification.*
-            `;
-
-            if (botComment) {
-              // Update existing comment
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: commentBody
-              });
-            } else {
-              // Create new comment
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prData.number,
-                body: commentBody
-              });
-            }
+            console.log(`Status: ${status}`);
+            console.log(`Message: ${message}`);
 
       - name: Set job status
         if: steps.verify.outputs.status == 'failure'
         run: |
           echo "::error::PR checklist verification failed. Please complete required checklist items."
           exit 1
-
-  verify-tests-for-bug-fix:
-    name: Verify Tests for Bug Fixes
-    runs-on: ubuntu-latest
-    if: (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'bug'))
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check for test additions
-        id: check-tests
-        run: |
-          # Get list of changed files
-          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed_files.txt
-
-          # Check if any test files were modified or added
-          TEST_FILES=$(grep -E '(test|spec).*\.rs$|tests/.*\.rs$|.*_test\.rs$' changed_files.txt || true)
-
-          if [ -z "$TEST_FILES" ]; then
-            echo "status=failure" >> $GITHUB_OUTPUT
-            echo "message=Bug fix PR must include tests" >> $GITHUB_OUTPUT
-            echo "::warning::Bug fix PR #${{ github.event.pull_request.number }} does not include test file changes"
-          else
-            echo "status=success" >> $GITHUB_OUTPUT
-            echo "message=Test files found: $(echo $TEST_FILES | wc -l) test file(s) modified" >> $GITHUB_OUTPUT
-            echo "Test files modified:"
-            echo "$TEST_FILES"
-          fi
-
-  verify-size-requirements:
-    name: Verify PR Size Requirements
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request)
-
-    steps:
-      - name: Get PR number
-        id: pr-number
-        uses: actions/github-script@v7
-        with:
-          script: |
-            if (context.eventName === 'pull_request') {
-              return context.payload.pull_request.number;
-            } else if (context.eventName === 'issue_comment') {
-              return context.payload.issue.number;
-            }
-            return null;
-
-      - name: Check PR size
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const prNumber = ${{ steps.pr-number.outputs.result }};
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber
-            });
-
-            const additions = pr.additions;
-            const deletions = pr.deletions;
-            const totalChanges = additions + deletions;
-            const changedFiles = pr.changed_files;
-
-            console.log(`PR Size: +${additions} -${deletions} (${totalChanges} total changes, ${changedFiles} files)`);
-
-            let message = `PR size: ${totalChanges} lines changed in ${changedFiles} files`;
-            let warning = '';
-
-            if (totalChanges > 1000) {
-              warning = '⚠️ **Very large PR (>1000 lines)**: Consider splitting into smaller PRs for better reviewability.';
-            } else if (totalChanges > 500) {
-              warning = '⚠️ **Large PR (>500 lines)**: Ensure you have checked "At least 2 approvals" in the PR checklist.';
-            }
-
-            if (warning) {
-              // Check if we already commented
-              const { data: comments } = await github.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber
-              });
-
-              const sizeComment = comments.find(comment =>
-                comment.user.type === 'Bot' &&
-                comment.body.includes('PR Size Check')
-              );
-
-              const commentBody = `## 📏 PR Size Check\n\n${warning}\n\n**Changes:** +${additions} -${deletions} lines across ${changedFiles} files\n\n${totalChanges > 500 ? '**Recommendation:** Please ensure you request at least 2 reviewers for this large PR.' : ''}`;
-
-              if (!sizeComment) {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: prNumber,
-                  body: commentBody
-                });
-              }
-            }

@@ -1,0 +1,100 @@
+{
+  "core_checklist": {
+    "title": "Core Quality Checklist",
+    "description": "These items apply to all PRs regardless of type",
+    "critical": true,
+    "items": [
+      "The PR solves the problem it claims to solve",
+      "Code follows project conventions and style guidelines",
+      "New code has appropriate tests",
+      "All errors are properly handled",
+      "Public APIs have doc comments (if applicable)"
+    ]
+  },
+  "label_checklists": {
+    "bug": {
+      "title": "🐛 Bug Fix Requirements",
+      "description": "Since this PR is labeled as a **bug fix**, please ensure:",
+      "critical": true,
+      "items": [
+        "**Root cause documented** - Explain what caused the bug in the PR description",
+        "**Reproduction test added** - Test that fails on main branch without the fix",
+        "**Test passes with fix** - The reproduction test passes with your changes",
+        "**Regression prevention** - Test will catch if this bug reoccurs in the future",
+        "**Fix is minimal** - Changes are focused only on fixing the bug",
+        "**Related bugs checked** - Verified no similar bugs exist in related code"
+      ],
+      "footer": "**Why this matters:** Bugs without tests often reoccur."
+    },
+    "enhancement": {
+      "title": "✨ Feature/Enhancement Requirements",
+      "description": "Since this PR adds new functionality:",
+      "critical": false,
+      "items": [
+        "**Feature scope documented** - Clear description of what the feature does",
+        "**API design reviewed** - Public APIs are intuitive and well-designed",
+        "**Comprehensive tests** - All functionality is tested (happy path + edge cases)",
+        "**Examples provided** - Usage examples in code comments or separate example files",
+        "**Documentation updated** - User-facing docs reflect new functionality",
+        "**Breaking changes noted** - If any, migration guide provided",
+        "**Performance considered** - No obvious performance regressions"
+      ],
+      "footer": "**Consider:** Can this feature be split into smaller, incremental PRs?"
+    },
+    "new feature": {
+      "title": "✨ New Feature Requirements",
+      "description": "Since this PR adds a new feature:",
+      "critical": false,
+      "items": [
+        "**Feature scope documented** - Clear description of what the feature does",
+        "**API design reviewed** - Public APIs are intuitive and well-designed",
+        "**Comprehensive tests** - All functionality is tested (happy path + edge cases)",
+        "**Examples provided** - Usage examples in code comments or separate example files",
+        "**Documentation updated** - User-facing docs reflect new functionality",
+        "**Breaking changes noted** - If any, migration guide provided",
+        "**Performance considered** - No obvious performance regressions"
+      ],
+      "footer": "**Consider:** Can this feature be split into smaller, incremental PRs?"
+    },
+    "breaking-change": {
+      "title": "💥 Breaking Change Requirements",
+      "description": "Since this PR contains breaking changes:",
+      "critical": true,
+      "items": [
+        "**Breaking changes documented** - Clear list of what breaks",
+        "**Migration guide provided** - Step-by-step instructions for users",
+        "**Deprecation considered** - Could this be done with deprecation warnings first?",
+        "**Version bump planned** - Major or minor version bump needed",
+        "**Alternatives explored** - Why is breaking change necessary?",
+        "**Impact assessed** - How many users/use cases affected?"
+      ],
+      "footer": "**Note:** Breaking changes should be discussed with maintainers before implementation."
+    },
+    "documentation": {
+      "title": "📚 Documentation Update Requirements",
+      "description": "Since this PR updates documentation:",
+      "critical": false,
+      "items": [
+        "**Accuracy verified** - Technical details are correct",
+        "**Examples tested** - Code examples actually work",
+        "**Links valid** - All links work and point to correct versions",
+        "**Grammar/spelling** - Text is clear and well-written",
+        "**Formatting correct** - Markdown/formatting renders properly",
+        "**Up-to-date** - Reflects current codebase state"
+      ],
+      "footer": "**Suggestion:** Have someone unfamiliar with the feature review for clarity."
+    },
+    "internal": {
+      "title": "🏠 Internal Change",
+      "description": "This PR is marked as **internal** (not user-facing):",
+      "critical": false,
+      "items": [
+        "**No API changes** - Public APIs unchanged",
+        "**No behavior changes** - External behavior identical",
+        "**Refactoring/maintenance** - Code improvements only",
+        "**Tests still pass** - All existing tests pass without modification"
+      ],
+      "footer": "**Lighter review:** Internal changes may have lighter review requirements."
+    }
+  }
+}
