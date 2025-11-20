@@ -106,9 +106,11 @@ jobs:
 
       - name: Post or update checklist comment
         uses: actions/github-script@v7
+        env:
+          RESULT_JSON: ${{ steps.generate.outputs.result }}
         with:
           script: |
-            const result = JSON.parse(`${{ steps.generate.outputs.result }}`);
+            const result = JSON.parse(process.env.RESULT_JSON);
             const comment = result.comment;
 
             // Find existing label-based checklist comment
