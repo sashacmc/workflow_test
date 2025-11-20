@@ -77,7 +77,7 @@ jobs:
                 '',
                 `Current labels: ${labelsList}`,
                 '',
-                'Add labels to this PR (bug, enhancement, security, etc.) to see relevant checklist items here.',
+                'Add labels to this PR (bug, enhancement, etc.) to see relevant checklist items here.',
                 '',
                 '---',
                 '*This comment updates automatically when labels change.*'
