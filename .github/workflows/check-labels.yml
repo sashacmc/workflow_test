@@ -13,3 +13,10 @@ jobs:
       github-token: ${{ secrets.GITHUB_TOKEN }}
     permissions:
       pull-requests: write
+  checklist-verification:
+    name: Check PR Checklist 
+    uses: eclipse-zenoh/ci/.github/workflows/checklist-verification.yml@main
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      pull-requests: write
