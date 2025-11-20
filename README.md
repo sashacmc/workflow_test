@@ -14,21 +14,3 @@ Zenoh (pronounce _/zeno/_) unifies data in motion, data at rest and computations
 
 Check the website [zenoh.io](http://zenoh.io) and the [roadmap](https://github.com/eclipse-zenoh/roadmap) for more detailed information.
 
--------------------------------
-
-# A Zenoh bridge for TEMPLATE
-
-TODO: Add description
-Remember to update all keywords: template in the code
-
--------------------------------
-
-# Build
-
-TODO: How to build
-
--------------------------------
-
-# Usage
-
-TODO: How to use
