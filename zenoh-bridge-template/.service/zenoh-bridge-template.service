@@ -1,0 +1,23 @@
+[Unit]
+Description = Eclipse Zenoh Bridge for Template
+Documentation=https://github.com/eclipse-zenoh/zenoh-plugin-template
+After=network-online.target
+Wants=network-online.target
+
+
+[Service]
+Type=simple
+Environment=RUST_LOG=info
+ExecStart =+/usr/bin/zenoh-bridge-template -c /etc/zenoh-bridge-template/conf.json5
+KillMode=control-group
+KillSignal=SIGINT
+RestartKillSignal=SIGINT
+Restart=on-failure
+RestartSec=2
+User=zenoh-bridge-template
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=zenoh-bridge-template
+[Install]
+WantedBy=multi-user.target
+

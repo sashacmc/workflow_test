@@ -1,0 +1,117 @@
+////
+//// This file presents the default configuration used by both the `zenoh-plugin-template` plugin and the `zenoh-bridge-template` standalone executable.
+////
+{
+  plugins: {
+    ////
+    //// Template related configuration
+    //// All settings are optional and are unset by default - uncomment the ones you want to set
+    ////
+    template: {
+      ////
+      //// This plugin uses Tokio (https://tokio.rs/) for asynchronous programming. 
+      //// When running as a plugin within a Zenoh router, the plugin creates its own Runtime managing 2 pools of threads:
+      ////    - worker threads for non-blocking tasks. Those threads are spawn at Runtime creation.
+      ////    - blocking threads for blocking tasks (e.g. I/O). Those threads are spawn when needed.
+      //// For more details see https://github.com/tokio-rs/tokio/discussions/3858#discussioncomment-869878
+      //// When running as a standalone bridge the Zenoh Session's Runtime is used and can be configured via the
+      //// `ZENOH_RUNTIME` environment variable. See https://docs.rs/zenoh-runtime/latest/zenoh_runtime/enum.ZRuntime.html
+      ////
+
+      //// work_thread_num: The number of worker thread in the asynchronous runtime will use. (default: 2)
+      ////                  Only for a plugin, no effect on a bridge.
+      // work_thread_num: 2,
+
+      //// max_block_thread_num: The number of blocking thread in the asynchronous runtime will use. (default: 50)
+      ////                       Only for a plugin, no effect on a bridge.
+      // max_block_thread_num: 50,
+    },
+
+    ////
+    //// REST API configuration (active only if this part is defined)
+    ////
+    // rest: {
+    //   ////
+    //   //// The HTTP port number (for all network interfaces).
+    //   //// You can bind on a specific interface setting a "<local_ip>:<port>" string.
+    //   ////
+    //   http_port: 8000,
+    // },
+  },
+
+  ////
+  //// Zenoh related configuration.
+  //// Only the most relevant sections are displayed here.
+  //// For a complete view of configuration possibilities, see https://github.com/eclipse-zenoh/zenoh/blob/main/DEFAULT_CONFIG.json5
+  ////
+
+  /// The identifier (as unsigned 128bit integer in hexadecimal lowercase - leading zeros are not accepted)
+  /// that zenoh runtime will use.
+  /// If not set, a random unsigned 128bit integer will be used.
+  /// WARNING: this id must be unique in your zenoh network.
+  // id: "1234567890abcdef",
+
+  ////
+  //// mode: The bridge's mode (router, peer or client)
+  ////
+  //mode: "router",
+
+  ////
+  //// Which endpoints to connect to. E.g. tcp/localhost:7447.
+  //// By configuring the endpoints, it is possible to tell zenoh which remote router or other zenoh-bridge-template to connect to at startup.
+  ////
+  connect: {
+    endpoints: [
+      // "<proto>/<ip>:<port>"
+    ]
+  },
+
+  ////
+  //// Which endpoints to listen on.
+  //// By configuring the endpoints, it is possible to tell zenoh which are the endpoints that other routers,
+  //// peers, or client can use to establish a zenoh session.
+  //// In 'router' mode (default) the zenoh-bridge-template is listening by default on `tcp/0.0.0.0:7447` (`0.0.0.0` meaning all the available network interfaces)
+  ////
+  // listen: {
+  //  endpoints: [
+  //    // "<proto>/<ip>:<port>"
+  //  ]
+  //},
+
+  ////
+  //// Configure the scouting mechanisms and their behaviours
+  ////
+  //scouting: {
+  //  /// The UDP multicast scouting configuration.
+  //  multicast: {
+  //    /// Whether multicast scouting is enabled or not
+  //    enabled: true,
+  //    /// The socket which should be used for multicast scouting
+  //    address: "224.0.0.224:7446",
+  //    /// The network interface which should be used for multicast scouting
+  //    interface: "auto", // If not set or set to "auto" the interface if picked automatically
+  //    /// Which type of Zenoh instances to automatically establish sessions with upon discovery on UDP multicast.
+  //    /// Accepts a single value or different values for router, peer and client.
+  //    /// Each value is an array containing values "peer", "router" and "client".
+  //    autoconnect: { router: [], peer: ["router","peer"] },
+  //    /// Whether or not to listen for scout messages on UDP multicast and reply to them.
+  //    listen: true,
+  //  },
+  //  /// The gossip scouting configuration.
+  //  gossip: {
+  //    /// Whether gossip scouting is enabled or not
+  //    enabled: true,
+  //    /// When true, gossip scouting information is propagated multiple hops to all nodes in the local network.
+  //    /// When false, gossip scouting information is only propagated to the next hop.
+  //    /// Activating multihop gossip implies more scouting traffic and a lower scalability.
+  //    /// It mostly makes sense when using "linkstate" routing mode where all nodes in the subsystem don't have
+  //    /// direct connectivity with each other.
+  //    multihop: false,
+  //    /// Which type of Zenoh instances to automatically establish sessions with upon discovery on gossip.
+  //    /// Accepts a single value or different values for router, peer and client.
+  //    /// Each value is an array containing values "peer", "router" and "client".
+  //    autoconnect: { router: [], peer: ["router","peer"] },
+  //  },
+  //},
+
+}
