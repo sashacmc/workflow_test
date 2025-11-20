@@ -51,15 +51,17 @@ jobs:
                 const def = labelDefinitions[label];
                 const items = def.items.map(item => `- [ ] ${item}`).join('\n');
 
-                checklists.push(`
-## ${def.title}
+                const checklistText = [
+                  `## ${def.title}`,
+                  '',
+                  def.description,
+                  '',
+                  items,
+                  '',
+                  def.footer || ''
+                ].join('\n').trim();
 
-${def.description}
-
-${items}
-
-${def.footer || ''}
-                `.trim());
+                checklists.push(checklistText);
               }
             }
 
@@ -67,35 +69,41 @@ ${def.footer || ''}
             let comment = '';
 
             if (checklists.length === 0) {
-              comment = `## 🏷️ Label-Based Checklist
-
-**No specific label requirements detected.**
-
-Current labels: ${labels.length > 0 ? labels.map(l => `\`${l}\``).join(', ') : '_No labels_'}
-
-Add labels to this PR (bug, enhancement, security, etc.) to see relevant checklist items here.
-
----
-*This comment updates automatically when labels change.*`;
+              const labelsList = labels.length > 0 ? labels.map(l => `\`${l}\``).join(', ') : '_No labels_';
+              comment = [
+                '## 🏷️ Label-Based Checklist',
+                '',
+                '**No specific label requirements detected.**',
+                '',
+                `Current labels: ${labelsList}`,
+                '',
+                'Add labels to this PR (bug, enhancement, security, etc.) to see relevant checklist items here.',
+                '',
+                '---',
+                '*This comment updates automatically when labels change.*'
+              ].join('\n');
             } else {
-              comment = `## 🏷️ Label-Based Checklist
-
-Based on the labels applied to this PR, please complete these additional requirements:
-
-**Labels:** ${labels.map(l => `\`${l}\``).join(', ')}
-
----
-
-${checklists.join('\n\n---\n\n')}
-
----
-
-**Instructions:**
-1. Check off items as you complete them (change \`- [ ]\` to \`- [x]\`)
-2. Edit this comment to update checkboxes
-3. The PR checklist CI will verify these are completed
-
-*This comment updates automatically when labels change.*`;
+              const labelsList = labels.map(l => `\`${l}\``).join(', ');
+              comment = [
+                '## 🏷️ Label-Based Checklist',
+                '',
+                'Based on the labels applied to this PR, please complete these additional requirements:',
+                '',
+                `**Labels:** ${labelsList}`,
+                '',
+                '---',
+                '',
+                checklists.join('\n\n---\n\n'),
+                '',
+                '---',
+                '',
+                '**Instructions:**',
+                '1. Check off items as you complete them (change `- [ ]` to `- [x]`)',
+                '2. Edit this comment to update checkboxes',
+                '3. The PR checklist CI will verify these are completed',
+                '',
+                '*This comment updates automatically when labels change.*'
+              ].join('\n');
             }
 
             return JSON.stringify({ comment, labelCount: labels.length, checklistCount: checklists.length });
